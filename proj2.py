@@ -9,24 +9,26 @@ sys.setrecursionlimit(10_000)
 
 # Put your data definitions first!
 @dataclass(frozen=True)
-class Row
+class Row:
   country: str
   year: int
   electricity_and_heat_co2_emissions: float|None
   electricity_and_heat_co2_emissions_per_capita: float|None
-  energy_co2_emission: float|None
-  energy_co2_emissions_per_capita	total_co2_emissions_excluding_lucf: float|None
+  energy_co2_emissions: float|None
+  energy_co2_emissions_per_capita: float|None
+  total_co2_emissions_excluding_lucf: float|None
   total_co2_emissions_excluding_lucf_per_capita: float|None
   
-class Node
-  value = Row
-  next = Node | None
+@dataclass(frozen=True)
+class Node:
+  value: Row
+  next: Node | None
      
 # ...
 
 # Then your functions.
 
-expected_header = expected_header = [
+expected_header = [
     "country",
     "year",
     "electricity_and_heat_co2_emissions",
@@ -60,14 +62,15 @@ def build_list(rows: list[list[str]]) -> Optional[Node]:
     return Node(parse_row(rows[0]), build_list(rows[1:]))
   
 def read_csv_lines(filename: str) -> Optional[Node]:
-  with open(filename, newline="") as csvfile:
-          reader = csv.reader(csvfile)
-          header = next(reader)
-          if header != expected_header:
-              raise ValueError("Invalid header row")
-            
-          rows = list(reader)
-          return build_list(rows)
+    with open(filename, newline="") as csvfile:
+        reader = csv.reader(csvfile)
+        header = next(reader)
+
+        if header != expected_header:
+            raise ValueError("Invalid header row")
+
+        rows = list(reader)
+        return build_list(rows)
 
 
 def listlen(data: Optional[Node]) -> int:
@@ -92,16 +95,26 @@ def filter_rows(
         field = row.country
     elif field_name == "year":
         field = row.year
+    elif field_name == "electricity_and_heat_co2_emissions":
+        field = row.electricity_and_heat_co2_emissions
+    elif field_name == "electricity_and_heat_co2_emissions_per_capita":
+        field = row.electricity_and_heat_co2_emissions_per_capita
     elif field_name == "energy_co2_emissions":
         field = row.energy_co2_emissions
+    elif field_name == "energy_co2_emissions_per_capita":
+        field = row.energy_co2_emissions_per_capita
+    elif field_name == "total_co2_emissions_excluding_lucf":
+        field = row.total_co2_emissions_excluding_lucf
+    elif field_name == "total_co2_emissions_excluding_lucf_per_capita":
+        field = row.total_co2_emissions_excluding_lucf_per_capita
     else:
-        field = None  # you can expand this
+        raise ValueError("Invalid field name")
 
     if field is None:
         return filter_rows(data.next, field_name, comparison, value)
 
-
-    match = False
+    if field_name == "country" and comparison != "equal":
+        raise ValueError("Country only supports equal comparison")
 
     if comparison == "equal":
         match = field == value
@@ -109,15 +122,16 @@ def filter_rows(
         match = field < value
     elif comparison == "greater_than":
         match = field > value
+    else:
+        raise ValueError("Invalid comparison")
 
-    rest = filter_rows(data.next, field_name, comparison, value)
+    filtered_rest = filter_rows(data.next, field_name, comparison, value)
 
     if match:
-        return Node(row, rest)
-    else:
-        return rest
+        return Node(row, filtered_rest)
 
-  
+    return filtered_rest
+   
 # return Row( country: str
 #   year: int
 #   electricity_and_heat_co2_emissions: float|None
